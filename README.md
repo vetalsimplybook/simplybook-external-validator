@@ -1,9 +1,9 @@
 # Simplybook External Plugin Validator
 
-You can validate bookings through the use of an external script. The script can check variables from the booking, and only if conditions fulfilled, the booking is processed. Additionally the validation script can bring back information that can be injected into intake form variables.
+You can validate bookings through the use of an external script. The script can check variables from the booking, and only if conditions are fulfilled, the booking is processed. Additionally the validation script can bring back the information that can be injected into intake form variables.
 
 ---
-Incomming data example:
+Incoming data example:
 ```
 {
     "service_id":"9",
@@ -42,7 +42,7 @@ Output data example (in case of successful validation):
 
 
 
-Output data example (in case of successful validation and  bring back information into intake form variables):
+Output data example (in case of successful validation and the information is brought back into intake form variables):
 ```
 {
     "additional_fields":[

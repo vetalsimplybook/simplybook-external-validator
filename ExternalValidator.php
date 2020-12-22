@@ -11,11 +11,11 @@ class ExternalValidator {
     const INTAKE_FORM_INCORRECT_CHECK_DOB = 6;
 
     protected $_errors = array(
-        self::SERVICE_ERROR => 'Invalid service selected. Please select another service to continue booking.',
-        self::INTAKE_FORM_UNKNOWN => 'Intake Form are missing for this service',
-        self::INTAKE_FORM_UNKNOWN_CHECK_NUMBER => '"Check number" field are missing.',
-        self::INTAKE_FORM_INCORRECT_CHECK_NUMBER => '"Check number" field are incorrect.',
-        self::INTAKE_FORM_UNKNOWN_CHECK_DOB => '"Date of birth" field are missing.',
+        self::SERVICE_ERROR => 'Invalid service is selected. Please select another service to continue booking.',
+        self::INTAKE_FORM_UNKNOWN => 'Intake Forms are missing for this service',
+        self::INTAKE_FORM_UNKNOWN_CHECK_NUMBER => '"Check number" field is missing.',
+        self::INTAKE_FORM_INCORRECT_CHECK_NUMBER => '"Check number" field is incorrect.',
+        self::INTAKE_FORM_UNKNOWN_CHECK_DOB => '"Date of birth" field is missing.',
         self::INTAKE_FORM_INCORRECT_CHECK_DOB => 'Incorrect date of birth',
     );
 
@@ -30,47 +30,47 @@ class ExternalValidator {
             $timeStart = microtime(true);
             $this->_log($bookingData);
 
-            //Example of service validation. Similarly, you can check the provider, client or number of bookings
+            //It is an example of service validation. Similarly, you can check the provider, client or number of bookings
             if (!isset($bookingData['service_id']) || $bookingData['service_id'] != 9) {
                 $this->_error(self::SERVICE_ERROR, 'service_id');
                 return false;
             }
 
-            //Example of Intake Form validation.
+            //It is an example of Intake Form validation.
             if (!isset($bookingData['additional_fields'])) {
                 $this->_error(self::INTAKE_FORM_UNKNOWN);
                 return false;
             }
 
-            //select Intake field by name 'Check number'. By analogy you can find Intake field by id (if you know the id in advance)
+            //Please select the 'Check number' Intake field. You can also find the Intake form by its id (if you know the id in advance)
             $checkNumberField = $this->_findField('checkNumber', $bookingData['additional_fields'], $this->_fieldsNameMap);
 
-            //Example of 'Check number' validation.
-            if (!$checkNumberField) { //field with name 'Check number' are missing
+            //It is the example of 'Check number' validation.
+            if (!$checkNumberField) { //field with the name 'Check number' is missing
                 $this->_error(self::INTAKE_FORM_UNKNOWN_CHECK_NUMBER );
                 return false;
-            }else if ($checkNumberField['value'] != 112233445566) { //check value
+            }else if ($checkNumberField['value'] != 112233445566) { //check the field value
                 $this->_error(self::INTAKE_FORM_INCORRECT_CHECK_NUMBER, null, $checkNumberField['id'] );
                 return false;
             }
 
-            //select Intake field by name 'Date of birth'. By analogy you can find Intake field by id (if you know the id in advance)
+            //Please select the 'Date of birth' Intake form. The same way, you can find Intake field by its id (if you know the id in advance)
             $dateOfBirthField = $this->_findField('dateOfBirth', $bookingData['additional_fields'], $this->_fieldsNameMap);
 
-            //Example of 'Date of birth' validation.
-            if (!$dateOfBirthField) { //field with name 'Date of birth' are missing
+            //It is the example of 'Date of birth' validation.
+            if (!$dateOfBirthField) { //field with name 'Date of birth' is missing
                 $this->_error(self::INTAKE_FORM_UNKNOWN_CHECK_DOB );
                 return false;
-            }else if ( !$this->_isBirthdayValid($dateOfBirthField['value']) ) { //check if DOB valid
+            }else if ( !$this->_isBirthdayValid($dateOfBirthField['value']) ) { //check if 'Date of birth' is valid
                 $this->_error(self::INTAKE_FORM_INCORRECT_CHECK_DOB, null, $checkNumberField['id'] );
                 return false;
             }
 
-            //Example of changing the value of Intake Form.
-            // This value will be saved on the Simplybook side.
+            //It is the example of changing the Intake Form value.
+            // This value will be saved on the SimplyBook.me side.
             // Please note that only Intake Form can be changed (provider or service cannot be changed)
             $result = array(
-                'checkString' => "replaced text", //Change the value of the name 'Some string' field. The value will be saved on the simplybook side, as if entered by the client
+                'checkString' => "replaced text", //Change the value of the 'Some string' field. The value will be saved on the SimplyBook.me side, as if entered by the client
             );
 
             $this->_log($result);
@@ -134,7 +134,7 @@ class ExternalValidator {
     }
 
     /**
-     * Generation error for output on the Simplybook booking page
+     * Generation error for output on the Simplybook.me booking page
      *
      * @param ExternalValidatorException $e
      * @return array[]|array[][]
