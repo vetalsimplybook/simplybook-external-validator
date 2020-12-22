@@ -1,0 +1,1 @@
+# simplybook-external-validator
