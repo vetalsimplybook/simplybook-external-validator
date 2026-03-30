@@ -56,17 +56,17 @@ timeout (a few seconds), so keep your validation logic fast.
     "sheduler_id": null,
     "additional_fields": [
         {
-            "id": "check_number",
+            "id": "ed8f5b7380f7111c592abf6f916fc2d0",
             "name": "Check number",
             "value": "112233445566"
         },
         {
-            "id": "some_string",
+            "id": "68700bfe1ba3d59441c9b14d4f94938b",
             "name": "Some string",
             "value": "simplybook"
         },
         {
-            "id": "date_of_birth",
+            "id": "ac4c3775f20dcfdea531346ee5bc8ea4",
             "name": "Date of birth",
             "value": "1973-03-02"
         }
@@ -101,7 +101,7 @@ timeout (a few seconds), so keep your validation logic fast.
 
 | Field | Type | Description |
 |---|---|---|
-| `id` | string | Field **system slug** (e.g. `"check_number"`) — stable, use this for matching |
+| `id` | string | MD5 hash generated at field creation time (e.g. `"ed8f5b7380f7111c592abf6f916fc2d0"`). Stable — never changes, use this for matching. |
 | `name` | string | Human-readable display name (e.g. `"Check number"`) — can be renamed by admin |
 | `value` | string | Value entered by the client |
 
@@ -128,7 +128,7 @@ client. Reference fields by their system slug in `id`.
 {
     "additional_fields": [
         {
-            "id": "some_string",
+            "id": "68700bfe1ba3d59441c9b14d4f94938b",
             "name": "Some string",
             "value": "replaced text"
         }
@@ -153,7 +153,7 @@ Use the field's system slug as `id`.
 {
     "additional_fields": [
         {
-            "id": "check_number",
+            "id": "ed8f5b7380f7111c592abf6f916fc2d0",
             "errors": ["Incorrect check number"]
         }
     ]
@@ -202,21 +202,44 @@ Use the field's system slug as `id`.
 
 ---
 
-## Matching Fields by Slug vs. Display Name
+## Matching Fields by ID vs. Display Name
 
-By default `_findField()` matches intake form fields by their `id` (system slug).
-This is the recommended approach — slugs are stable and unaffected by admin renames.
+By default `_findField()` matches intake form fields by their `id` (an MD5 hash
+generated when the field was created, e.g. `"ed8f5b7380f7111c592abf6f916fc2d0"`).
+This is the recommended approach — the hash never changes even if the field is renamed.
 
-To match by display name instead (e.g. during quick prototyping), pass `'name'`
-as the fourth argument and put the display name in `$_fieldsNameMap`:
+To discover the IDs for your fields, log the raw incoming request on first use
+and copy the `id` values from `additional_fields`.
+
+**Match by ID (recommended):** use the MD5 hash as the value — default behaviour, no extra argument needed:
 
 ```php
 protected $_fieldsNameMap = array(
-    'checkNumber' => 'Check number', // display name
+    'checkNumber' => 'ed8f5b7380f7111c592abf6f916fc2d0',
+    'checkString' => '68700bfe1ba3d59441c9b14d4f94938b',
+    'dateOfBirth' => 'ac4c3775f20dcfdea531346ee5bc8ea4',
 );
 
-$checkNumberField = $this->_findField('checkNumber', $additionalFields, $this->_fieldsNameMap, 'name');
+// Inside validate():
+$checkNumberField = $this->_findField('checkNumber', $additionalFields, $this->_fieldsNameMap);
+$dateOfBirthField = $this->_findField('dateOfBirth', $additionalFields, $this->_fieldsNameMap);
 ```
+
+**Match by display name** (e.g. during quick prototyping before you know the IDs): use the display name as the value and pass `'name'` as the fourth argument to `_findField()`:
+
+```php
+protected $_fieldsNameMap = array(
+    'checkNumber' => 'Check number',
+    'checkString' => 'Some string',
+    'dateOfBirth' => 'Date of birth',
+);
+
+// Inside validate():
+$checkNumberField = $this->_findField('checkNumber', $additionalFields, $this->_fieldsNameMap, 'name');
+$dateOfBirthField = $this->_findField('dateOfBirth', $additionalFields, $this->_fieldsNameMap, 'name');
+```
+
+> Choose one approach for the whole class — don't mix ID and name matching in the same `$_fieldsNameMap`.
 
 ---
 

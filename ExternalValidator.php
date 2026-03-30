@@ -19,19 +19,19 @@ class ExternalValidator {
     );
 
     /**
-     * Maps logical field keys to the intake form field system names (slugs).
+     * Maps logical field keys to the Intake Forms field IDs.
      *
      * IMPORTANT: The 'id' sent by SimplyBook.me for each field in 'additional_fields'
-     * is the field's system name (slug), e.g. "check_number" — NOT a UUID or hash.
-     * Use these slugs here and when returning field updates/errors in the response.
+     * is an MD5 hash generated when the field was created (e.g. "ed8f5b7380f7111c592abf6f916fc2d0").
+     * It never changes, so matching by 'id' is reliable.
      *
-     * You can find the slug for each field in the SimplyBook.me admin panel under
-     * Intake Forms settings, or by logging the raw incoming request on first use.
+     * To find the IDs for your fields, log the raw incoming request on first use
+     * and copy the 'id' values you see there.
      */
     protected $_fieldsNameMap = array(
-        'checkNumber' => 'check_number',
-        'checkString' => 'some_string',
-        'dateOfBirth' => 'date_of_birth',
+        'checkNumber' => 'ed8f5b7380f7111c592abf6f916fc2d0',
+        'checkString' => '68700bfe1ba3d59441c9b14d4f94938b',
+        'dateOfBirth' => 'ac4c3775f20dcfdea531346ee5bc8ea4',
     );
 
     /**
@@ -143,17 +143,18 @@ class ExternalValidator {
     }
 
     /**
-     * Find an intake form field by its system slug (id) or display name.
+     * Find an intake form field by its ID or display name.
      *
-     * SimplyBook.me sends each field with both an 'id' (the system slug, e.g.
-     * "check_number") and a 'name' (the display title, e.g. "Check number").
-     * Matching by 'id'/slug is recommended — it is stable and unaffected by
-     * admin renames. Matching by 'name' is also supported as a fallback.
+     * SimplyBook.me sends each field with both an 'id' (an MD5 hash generated at
+     * field creation, e.g. "ed8f5b7380f7111c592abf6f916fc2d0") and a 'name'
+     * (the display title, e.g. "Check number").
+     * Matching by 'id' is recommended — it never changes even if the field is renamed.
+     * Matching by 'name' is also supported as a fallback.
      *
      * @param string $fieldKey   Key in $map, e.g. 'checkNumber'
      * @param array  $addFields  The 'additional_fields' array from the incoming request
-     * @param array  $map        Map of fieldKey => field slug (id) or display name
-     * @param string $mapType    'id' (default, matches by slug) or 'name' (matches by display name)
+     * @param array  $map        Map of fieldKey => field ID (MD5 hash) or display name
+     * @param string $mapType    'id' (default, matches by MD5 hash) or 'name' (matches by display name)
      * @return array|null        The matching field array, or null if not found
      */
     protected function _findField($fieldKey, $addFields, $map, $mapType = 'id'){

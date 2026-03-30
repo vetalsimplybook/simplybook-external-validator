@@ -22,17 +22,17 @@ $incomingData = json_decode('{
     "sheduler_id": null,
     "additional_fields": [
         {
-            "id": "check_number",
+            "id": "ed8f5b7380f7111c592abf6f916fc2d0",
             "name": "Check number",
             "value": "112233445566"
         },
         {
-            "id": "some_string",
+            "id": "68700bfe1ba3d59441c9b14d4f94938b",
             "name": "Some string",
             "value": "simplybook"
         },
         {
-            "id": "date_of_birth",
+            "id": "ac4c3775f20dcfdea531346ee5bc8ea4",
             "name": "Date of birth",
             "value": "1973-03-02"
         }
