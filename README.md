@@ -11,8 +11,8 @@ data before the booking is confirmed. Your script can:
 - **Rewrite intake form field values** — the overwritten values are stored as if
   the client had entered them.
 
-> **Note:** Development skills are required. The *Intake Forms* custom feature
-> is automatically enabled alongside this one.
+> **Note:** Development skills are required. To validate intake form fields,
+> enable the *Intake Forms* custom feature separately.
 
 ---
 
