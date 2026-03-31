@@ -340,7 +340,7 @@ logFile: "",
 <summary><strong>Java</strong></summary>
 
 ### Requirements
-- JDK 17+ ([download](https://adoptium.net/))
+- JDK 17+ ([Oracle](https://www.oracle.com/java/technologies/downloads/), [Adoptium](https://adoptium.net/))
 - Gradle is **not** required — the project includes a Gradle wrapper (`gradlew`)
 
 ### Build the JAR
