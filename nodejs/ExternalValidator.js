@@ -47,16 +47,30 @@ export class ExternalValidator {
             const timeStart = Date.now();
             this._log(bookingData);
 
+            // Step 1: Check that the booking is for the right service.
+            // SimplyBook.me sends the service_id of whatever the client booked.
+            // Here we only handle service #9 — change this to your real service ID,
+            // or remove the check entirely if you want to validate all services.
             if (!bookingData.service_id || bookingData.service_id !== 9) {
                 this._error(1, 'service_id');
             }
 
+            // Step 2: Make sure the booking includes intake form answers.
+            // Intake forms are the extra fields clients fill in when booking
+            // (e.g. "Check number", "Date of birth"). If they're missing entirely,
+            // the booking can't be validated and we reject it immediately.
             if (!bookingData.additional_fields) {
                 this._error(2);
             }
 
             const additionalFields = bookingData.additional_fields;
 
+            // Step 3: Find and validate the "Check number" field.
+            // We look up the field by its ID (an MD5 hash that never changes, even
+            // if you rename the field in SimplyBook.me). See _fieldsNameMap above.
+            // First we check the field exists, then that its value matches what we expect.
+            // If the value is wrong, we return a field-level error — SimplyBook.me will
+            // highlight that specific field in the booking form so the client can fix it.
             const checkNumberField = this._findField('checkNumber', additionalFields, this._fieldsNameMap);
             if (!checkNumberField) {
                 this._error(3);
@@ -64,6 +78,9 @@ export class ExternalValidator {
                 this._error(4, null, checkNumberField.id);
             }
 
+            // Step 4: Find and validate the "Date of birth" field.
+            // Same pattern as Step 3. We check the field exists, then validate
+            // that the date is real (not in the future, not impossibly old).
             const dateOfBirthField = this._findField('dateOfBirth', additionalFields, this._fieldsNameMap);
             if (!dateOfBirthField) {
                 this._error(5);
@@ -71,6 +88,11 @@ export class ExternalValidator {
                 this._error(6, null, dateOfBirthField.id);
             }
 
+            // Step 5: Optionally overwrite intake form values before saving.
+            // Whatever you return here will REPLACE the client's original input
+            // in SimplyBook.me. Useful for normalizing data (e.g. formatting a phone
+            // number) or filling in fields automatically.
+            // Return only the fields you want to change — the others stay as-is.
             const result = { checkString: 'replaced text' };
             this._log(result);
             const intakeFieldsResult = this._createFieldResult(result, additionalFields, this._fieldsNameMap);

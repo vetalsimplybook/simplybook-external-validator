@@ -49,12 +49,20 @@ public class ExternalValidator {
             long timeStart = System.currentTimeMillis();
             log(bookingData);
 
+            // Step 1: Check that the booking is for the right service.
+            // SimplyBook.me sends the service_id of whatever the client booked.
+            // Here we only handle service #9 — change this to your real service ID,
+            // or remove the check entirely if you want to validate all services.
             int serviceId = bookingData.get("service_id") instanceof Number
                     ? ((Number) bookingData.get("service_id")).intValue() : -1;
             if (serviceId != 9) {
                 throwError(SERVICE_ERROR, "service_id", null);
             }
 
+            // Step 2: Make sure the booking includes intake form answers.
+            // Intake forms are the extra fields clients fill in when booking
+            // (e.g. "Check number", "Date of birth"). If they're missing entirely,
+            // the booking can't be validated and we reject it immediately.
             if (!bookingData.containsKey("additional_fields")) {
                 throwError(INTAKE_FORM_UNKNOWN, null, null);
             }
@@ -63,6 +71,12 @@ public class ExternalValidator {
             List<Map<String, Object>> additionalFields =
                     (List<Map<String, Object>>) bookingData.get("additional_fields");
 
+            // Step 3: Find and validate the "Check number" field.
+            // We look up the field by its ID (an MD5 hash that never changes, even
+            // if you rename the field in SimplyBook.me). See fieldsNameMap above.
+            // First we check the field exists, then that its value matches what we expect.
+            // If the value is wrong, we return a field-level error — SimplyBook.me will
+            // highlight that specific field in the booking form so the client can fix it.
             Map<String, Object> checkNumberField = findField("checkNumber", additionalFields, fieldsNameMap);
             if (checkNumberField == null) {
                 throwError(INTAKE_FORM_UNKNOWN_CHECK_NUMBER, null, null);
@@ -70,6 +84,9 @@ public class ExternalValidator {
                 throwError(INTAKE_FORM_INCORRECT_CHECK_NUMBER, null, (String) checkNumberField.get("id"));
             }
 
+            // Step 4: Find and validate the "Date of birth" field.
+            // Same pattern as Step 3. We check the field exists, then validate
+            // that the date is real (not in the future, not impossibly old).
             Map<String, Object> dobField = findField("dateOfBirth", additionalFields, fieldsNameMap);
             if (dobField == null) {
                 throwError(INTAKE_FORM_UNKNOWN_CHECK_DOB, null, null);
@@ -77,6 +94,11 @@ public class ExternalValidator {
                 throwError(INTAKE_FORM_INCORRECT_CHECK_DOB, null, (String) dobField.get("id"));
             }
 
+            // Step 5: Optionally overwrite intake form values before saving.
+            // Whatever you return here will REPLACE the client's original input
+            // in SimplyBook.me. Useful for normalizing data (e.g. formatting a phone
+            // number) or filling in fields automatically.
+            // Return only the fields you want to change — the others stay as-is.
             Map<String, String> resultMap = new LinkedHashMap<>();
             resultMap.put("checkString", "replaced text");
             log(resultMap);

@@ -49,26 +49,48 @@ class ExternalValidator:
             time_start = datetime.now()
             self._log(booking_data)
 
+            # Step 1: Check that the booking is for the right service.
+            # SimplyBook.me sends the service_id of whatever the client booked.
+            # Here we only handle service #9 — change this to your real service ID,
+            # or remove the check entirely if you want to validate all services.
             if booking_data.get('service_id') != 9:
                 self._error(self.SERVICE_ERROR, 'service_id')
 
+            # Step 2: Make sure the booking includes intake form answers.
+            # Intake forms are the extra fields clients fill in when booking
+            # (e.g. "Check number", "Date of birth"). If they're missing entirely,
+            # the booking can't be validated and we reject it immediately.
             if 'additional_fields' not in booking_data:
                 self._error(self.INTAKE_FORM_UNKNOWN)
 
             additional_fields = booking_data['additional_fields']
 
+            # Step 3: Find and validate the "Check number" field.
+            # We look up the field by its ID (an MD5 hash that never changes, even
+            # if you rename the field in SimplyBook.me). See _fields_name_map above.
+            # First we check the field exists, then that its value matches what we expect.
+            # If the value is wrong, we return a field-level error — SimplyBook.me will
+            # highlight that specific field in the booking form so the client can fix it.
             check_number_field = self._find_field('checkNumber', additional_fields, self._fields_name_map)
             if not check_number_field:
                 self._error(self.INTAKE_FORM_UNKNOWN_CHECK_NUMBER)
             elif check_number_field['value'] != '112233445566':
                 self._error(self.INTAKE_FORM_INCORRECT_CHECK_NUMBER, None, check_number_field['id'])
 
+            # Step 4: Find and validate the "Date of birth" field.
+            # Same pattern as Step 3. We check the field exists, then validate
+            # that the date is real (not in the future, not impossibly old).
             dob_field = self._find_field('dateOfBirth', additional_fields, self._fields_name_map)
             if not dob_field:
                 self._error(self.INTAKE_FORM_UNKNOWN_CHECK_DOB)
             elif not self._is_birthday_valid(dob_field['value']):
                 self._error(self.INTAKE_FORM_INCORRECT_CHECK_DOB, None, dob_field['id'])
 
+            # Step 5: Optionally overwrite intake form values before saving.
+            # Whatever you return here will REPLACE the client's original input
+            # in SimplyBook.me. Useful for normalizing data (e.g. formatting a phone
+            # number) or filling in fields automatically.
+            # Return only the fields you want to change — the others stay as-is.
             result = {'checkString': 'replaced text'}
             self._log(result)
             intake_fields_result = self._create_field_result(result, additional_fields, self._fields_name_map)
