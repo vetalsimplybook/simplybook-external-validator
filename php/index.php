@@ -1,7 +1,7 @@
 <?php
 
-include_once 'ExternalValidatorException.php';
-include_once 'ExternalValidator.php';
+include_once __DIR__ . '/ExternalValidatorException.php';
+include_once __DIR__ . '/ExternalValidator.php';
 
 header('Content-Type: application/json');
 
