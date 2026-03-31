@@ -12,6 +12,7 @@ SimplyBook.me calls your HTTPS endpoint synchronously before saving a booking. Y
 | Node.js 18+ | Express | [`nodejs/`](nodejs/) |
 | Python 3.9+ | FastAPI | [`python/`](python/) |
 | Go 1.21+ | Gin | [`go/`](go/) |
+| Java 17+ | Spring Boot | [`java/`](java/) |
 
 Each implementation contains identical example validation logic and a commented-out stub for local testing (no HTTP request required).
 
@@ -331,6 +332,87 @@ yourdomain.com {
 
 ```go
 logFile: "",
+```
+
+</details>
+
+<details>
+<summary><strong>Java</strong></summary>
+
+### Requirements
+- JDK 17+ ([download](https://adoptium.net/))
+- Gradle is **not** required — the project includes a Gradle wrapper (`gradlew`)
+
+### Build the JAR
+
+```bash
+cd java
+./gradlew bootJar
+```
+
+This produces `java/build/libs/validator.jar` (~20 MB fat JAR with all dependencies).
+
+### Run the HTTP server
+
+```bash
+java -jar java/build/libs/validator.jar
+# Listening on http://localhost:8080
+```
+
+### Test with curl
+
+```bash
+curl -X POST http://localhost:8080/ \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "service_id": 9,
+    "additional_fields": [
+      {"id": "ed8f5b7380f7111c592abf6f916fc2d0", "name": "Check number", "value": "112233445566"},
+      {"id": "68700bfe1ba3d59441c9b14d4f94938b", "name": "Some string", "value": "simplybook"},
+      {"id": "ac4c3775f20dcfdea531346ee5bc8ea4", "name": "Date of birth", "value": "1973-03-02"}
+    ]
+  }'
+```
+
+### Production deployment
+
+1. **Build the JAR** (see above)
+
+2. **Run as a systemd service** — create `/etc/systemd/system/validator.service`:
+
+```ini
+[Unit]
+Description=SimplyBook External Validator
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/java -jar /var/www/validator/java/build/libs/validator.jar
+Restart=always
+User=www-data
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable and start:
+
+```bash
+sudo systemctl enable validator
+sudo systemctl start validator
+```
+
+3. **Put it behind a reverse proxy** (Nginx or Caddy) for HTTPS termination. Example Caddy config:
+
+```
+yourdomain.com {
+    reverse_proxy localhost:8080
+}
+```
+
+**Before going live**, disable logging in `java/src/main/java/com/simplybook/validator/ExternalValidator.java`:
+
+```java
+private String logFile = null;
 ```
 
 </details>
