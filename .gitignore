@@ -1,3 +1,4 @@
 CLAUDE.md
 .worktrees/
 nodejs/node_modules/
+python/__pycache__/
