@@ -59,7 +59,7 @@ class ExternalValidator {
             // Here we only handle service #9 — change this to your real service ID,
             // or remove the check entirely if you want to validate all services.
             if (!isset($bookingData['service_id']) || $bookingData['service_id'] != 9) {
-                $this->_error(self::SERVICE_ERROR, 'service_id');
+                $this->_error(self::SERVICE_ERROR);
             }
 
             // Step 2: Make sure the booking includes intake form answers.
@@ -203,14 +203,7 @@ class ExternalValidator {
      * @return array
      */
     protected function _sendError(ExternalValidatorException $e){
-        if ($e->getFieldId()) {
-            $result = array(
-                array(
-                    'id'     => $e->getFieldId(),
-                    'errors' => array($e->getMessage()),
-                )
-            );
-        } elseif ($e->getIntakeFieldId()) {
+        if ($e->getIntakeFieldId()) {
             $result = array(
                 'additional_fields' => array(
                     array(

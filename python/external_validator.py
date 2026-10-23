@@ -54,7 +54,7 @@ class ExternalValidator:
             # Here we only handle service #9 — change this to your real service ID,
             # or remove the check entirely if you want to validate all services.
             if booking_data.get('service_id') != 9:
-                self._error(self.SERVICE_ERROR, 'service_id')
+                self._error(self.SERVICE_ERROR)
 
             # Step 2: Make sure the booking includes intake form answers.
             # Intake forms are the extra fields clients fill in when booking
@@ -137,9 +137,7 @@ class ExternalValidator:
         return None
 
     def _send_error(self, e: ExternalValidatorException) -> dict:
-        if e.get_field_id():
-            result = [{'id': e.get_field_id(), 'errors': [str(e)]}]
-        elif e.get_intake_field_id():
+        if e.get_intake_field_id():
             result = {'additional_fields': [{'id': e.get_intake_field_id(), 'errors': [str(e)]}]}
         else:
             result = {'errors': [str(e)]}

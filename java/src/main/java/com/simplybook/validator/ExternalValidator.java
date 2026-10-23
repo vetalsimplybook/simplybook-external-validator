@@ -56,7 +56,7 @@ public class ExternalValidator {
             int serviceId = bookingData.get("service_id") instanceof Number
                     ? ((Number) bookingData.get("service_id")).intValue() : -1;
             if (serviceId != 9) {
-                throwError(SERVICE_ERROR, "service_id", null);
+                throwError(SERVICE_ERROR, null, null);
             }
 
             // Step 2: Make sure the booking includes intake form answers.
@@ -152,12 +152,7 @@ public class ExternalValidator {
 
     private Object sendError(ExternalValidatorException e) {
         Object result;
-        if (e.getFieldId() != null && !e.getFieldId().isEmpty()) {
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("id", e.getFieldId());
-            entry.put("errors", List.of(e.getMessage()));
-            result = List.of(entry);
-        } else if (e.getIntakeFieldId() != null && !e.getIntakeFieldId().isEmpty()) {
+        if (e.getIntakeFieldId() != null && !e.getIntakeFieldId().isEmpty()) {
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("id", e.getIntakeFieldId());
             entry.put("errors", List.of(e.getMessage()));

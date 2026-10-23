@@ -85,7 +85,7 @@ func (v *ExternalValidator) validate(bookingData map[string]interface{}) (map[st
 	// or remove the check entirely if you want to validate all services.
 	serviceID, _ := bookingData["service_id"].(float64)
 	if serviceID != 9 {
-		return nil, v.newError(errServiceError, "service_id", "")
+		return nil, v.newError(errServiceError, "", "")
 	}
 
 	// Step 2: Make sure the booking includes intake form answers.
@@ -180,11 +180,7 @@ func (v *ExternalValidator) findField(fieldKey string, addFields []map[string]in
 
 func (v *ExternalValidator) sendError(e *ExternalValidatorError) interface{} {
 	var result interface{}
-	if e.GetFieldID() != "" {
-		result = []map[string]interface{}{
-			{"id": e.GetFieldID(), "errors": []string{e.Error()}},
-		}
-	} else if e.GetIntakeFieldID() != "" {
+	if e.GetIntakeFieldID() != "" {
 		result = map[string]interface{}{
 			"additional_fields": []map[string]interface{}{
 				{"id": e.GetIntakeFieldID(), "errors": []string{e.Error()}},

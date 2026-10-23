@@ -1,11 +1,30 @@
+import crypto from 'node:crypto';
 import express from 'express';
 import { ExternalValidator } from './ExternalValidator.js';
 
+// SimplyBook.me cannot sign requests or send custom headers, so the only
+// protection is a secret token in the URL (?token=...).
+// Refuse to start without a secret of at least 32 characters.
+const secret = process.env.VALIDATOR_TOKEN || '';
+if (secret.length < 32) {
+    console.error('VALIDATOR_TOKEN must be set to a secret of at least 32 characters');
+    process.exit(1);
+}
+
+// Constant-time comparison; timingSafeEqual needs equal-length buffers.
+function tokenMatches(token) {
+    if (typeof token !== 'string') return false;
+    const given = Buffer.from(token);
+    const expected = Buffer.from(secret);
+    return given.length === expected.length && crypto.timingSafeEqual(given, expected);
+}
+
 const app = express();
-app.use(express.json());
 
 /*
-// Uncomment for local testing (no HTTP request needed):
+// Uncomment for local testing (no HTTP request needed).
+// Run with: VALIDATOR_TOKEN=<at least 32 chars> node index.js
+const stubToken = process.env.VALIDATOR_TOKEN; // the value you would put in ?token=
 const stubData = {
     service_id: 9,
     provider_id: 45,
@@ -22,9 +41,27 @@ const stubData = {
     ],
 };
 const validator = new ExternalValidator();
-console.log(JSON.stringify(validator.validate(stubData), null, 2));
+console.log(tokenMatches(stubToken) ? JSON.stringify(validator.validate(stubData), null, 2) : '403 {}');
 process.exit(0);
 */
+
+// Only POST is accepted
+app.all('/', (req, res, next) => {
+    if (req.method !== 'POST') {
+        return res.status(405).set('Allow', 'POST').json({});
+    }
+    next();
+});
+
+// Reject before parsing the body when the token is wrong
+app.use((req, res, next) => {
+    if (!tokenMatches(req.query.token)) {
+        return res.status(403).json({});
+    }
+    next();
+});
+
+app.use(express.json());
 
 app.post('/', (req, res) => {
     if (!req.body || Object.keys(req.body).length === 0) {

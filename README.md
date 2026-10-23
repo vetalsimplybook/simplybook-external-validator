@@ -14,7 +14,7 @@ SimplyBook.me calls your HTTPS endpoint synchronously before saving a booking. Y
 | Go 1.21+ | Gin | [`go/`](go/) |
 | Java 17+ | Spring Boot | [`java/`](java/) |
 
-Each implementation contains identical example validation logic and a commented-out stub for local testing (no HTTP request required).
+Each implementation contains identical example validation logic, URL-token authentication (see [Security](#security)) and a commented-out stub for local testing (no HTTP request required).
 
 ---
 
@@ -30,15 +30,18 @@ Each implementation contains identical example validation logic and a commented-
 
 ```bash
 cd php
+export VALIDATOR_TOKEN=$(openssl rand -hex 32)   # see Security
 php -S localhost:8080 index.php
 ```
 
+Without the environment variable you can put the secret in a config file outside the web root instead — see [Security](#security).
+
 ### Local test (no HTTP request needed)
 
-Uncomment the stub block in `php/index.php` (remove `/*` and `*/` around lines 13–41), then:
+Uncomment the stub block in `php/index.php` (remove the `/*` and `*/` around the stub), then:
 
 ```bash
-php index.php
+VALIDATOR_TOKEN=$(openssl rand -hex 32) php index.php
 ```
 
 Expected output:
@@ -51,7 +54,7 @@ Re-comment the stub block when done.
 ### Test with curl
 
 ```bash
-curl -X POST http://localhost:8080/ \
+curl -X POST "http://localhost:8080/?token=$VALIDATOR_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "service_id": 9,
@@ -84,6 +87,8 @@ server {
 }
 ```
 
+**Set the secret** for PHP-FPM with `env[VALIDATOR_TOKEN] = ...` in the pool config (or `fastcgi_param VALIDATOR_TOKEN ...;` in Nginx, or `SetEnv VALIDATOR_TOKEN ...` in Apache), or — on shared hosting — in `validator.config.php` outside the web root (see [Security](#security)).
+
 **Before going live**, disable logging in `php/ExternalValidator.php`:
 
 ```php
@@ -108,16 +113,17 @@ npm install
 ### Run the HTTP server
 
 ```bash
+export VALIDATOR_TOKEN=$(openssl rand -hex 32)   # see Security
 node index.js
 # Listening on http://localhost:3000
 ```
 
 ### Local test (no HTTP request needed)
 
-Uncomment the stub block in `nodejs/index.js` (remove `/*` and `*/` around the stub section), then:
+Uncomment the stub block in `nodejs/index.js` (remove the `/*` and `*/` around the stub), then:
 
 ```bash
-node index.js
+VALIDATOR_TOKEN=$(openssl rand -hex 32) node index.js
 ```
 
 Expected output:
@@ -130,7 +136,7 @@ Re-comment the stub block when done.
 ### Test with curl
 
 ```bash
-curl -X POST http://localhost:3000/ \
+curl -X POST "http://localhost:3000/?token=$VALIDATOR_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "service_id": 9,
@@ -149,7 +155,7 @@ Run with [PM2](https://pm2.keymetrics.io/) so the process restarts automatically
 ```bash
 npm install -g pm2
 cd nodejs
-pm2 start index.js --name validator
+VALIDATOR_TOKEN=<your secret> pm2 start index.js --name validator --update-env
 pm2 save && pm2 startup
 ```
 
@@ -185,13 +191,14 @@ pip install -r requirements.txt
 ### Run the HTTP server
 
 ```bash
+export VALIDATOR_TOKEN=$(openssl rand -hex 32)   # see Security
 uvicorn main:app --port 8000
 # Listening on http://localhost:8000
 ```
 
 ### Local test (no HTTP request needed)
 
-Run directly from the `python/` directory:
+Run directly from the `python/` directory (this calls the validator directly, so no token is involved):
 
 ```bash
 python3 -c "
@@ -217,7 +224,7 @@ Expected output:
 ### Test with curl
 
 ```bash
-curl -X POST http://localhost:8000/ \
+curl -X POST "http://localhost:8000/?token=$VALIDATOR_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "service_id": 9,
@@ -239,7 +246,7 @@ pip install gunicorn
 gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 ```
 
-Or use [systemd](https://systemd.io/) / [supervisor](http://supervisord.org/) to keep the process alive. Put it behind a reverse proxy (Nginx or Caddy) for HTTPS termination. Example Caddy config:
+Pass the secret with `VALIDATOR_TOKEN=<your secret> gunicorn ...`. Or use [systemd](https://systemd.io/) / [supervisor](http://supervisord.org/) (with an `Environment=` / `environment=` entry) to keep the process alive. Put it behind a reverse proxy (Nginx or Caddy) for HTTPS termination. Example Caddy config:
 
 ```
 yourdomain.com {
@@ -271,16 +278,17 @@ go mod download
 ### Run the HTTP server
 
 ```bash
+export VALIDATOR_TOKEN=$(openssl rand -hex 32)   # see Security
 go run .
 # Listening on http://localhost:8080
 ```
 
 ### Local test (no HTTP request needed)
 
-Uncomment the stub block in `go/main.go` (remove `/*` and `*/` around the stub section), then:
+Uncomment the stub block in `go/main.go` (remove the `/*` and `*/` around the stub), then:
 
 ```bash
-go run .
+VALIDATOR_TOKEN=$(openssl rand -hex 32) go run .
 ```
 
 Expected output:
@@ -293,7 +301,7 @@ Re-comment the stub block when done.
 ### Test with curl
 
 ```bash
-curl -X POST http://localhost:8080/ \
+curl -X POST "http://localhost:8080/?token=$VALIDATOR_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "service_id": 9,
@@ -317,7 +325,7 @@ go build -o validator .
 2. **Run the binary** (e.g. as a systemd service or via a process manager):
 
 ```bash
-./validator
+VALIDATOR_TOKEN=<your secret> ./validator
 ```
 
 3. **Put it behind a reverse proxy** (Nginx or Caddy) to handle HTTPS termination. Example Caddy config:
@@ -355,6 +363,7 @@ This produces `java/build/libs/validator.jar` (~20 MB fat JAR with all dependenc
 ### Run the HTTP server
 
 ```bash
+export VALIDATOR_TOKEN=$(openssl rand -hex 32)   # see Security
 java -jar java/build/libs/validator.jar
 # Listening on http://localhost:8080
 ```
@@ -362,7 +371,7 @@ java -jar java/build/libs/validator.jar
 ### Test with curl
 
 ```bash
-curl -X POST http://localhost:8080/ \
+curl -X POST "http://localhost:8080/?token=$VALIDATOR_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "service_id": 9,
@@ -389,6 +398,7 @@ After=network.target
 ExecStart=/usr/bin/java -jar /var/www/validator/java/build/libs/validator.jar
 Restart=always
 User=www-data
+Environment=VALIDATOR_TOKEN=<your secret>
 
 [Install]
 WantedBy=multi-user.target
@@ -449,6 +459,19 @@ SimplyBook.me sends a JSON object to your endpoint:
 
 ### Responses
 
+Every response has `Content-Type: application/json`. Only `POST` is accepted.
+
+| Situation | HTTP status | Body |
+|-----------|-------------|------|
+| Accept, no changes | 200 | `{}` |
+| Accept, change intake form values | 200 | `{"additional_fields": [{"id": "...", "name": "...", "value": "..."}]}` |
+| Reject, general error | 200 | `{"errors": ["..."]}` |
+| Reject, field-level error | 200 | `{"additional_fields": [{"id": "...", "errors": ["..."]}]}` |
+| Missing or wrong `?token` (or no secret configured, PHP) | 403 | `{}` |
+| Method other than `POST` | 405 | `{}` |
+
+> **Never answer `{"errors": []}` to accept a booking** — an empty `errors` list also rejects it. Accept with `{}` (or with the changed `additional_fields`). Likewise do not return a bare JSON array (`[]` or `[{...}]`).
+
 **Accept (no changes):**
 ```json
 {}
@@ -490,11 +513,47 @@ SimplyBook.me sends a JSON object to your endpoint:
 
 1. Enable **Custom Features → Intake Forms** and **Custom Features → External Booking Validator**
 2. Deploy your validator to an HTTPS endpoint
-3. Enter the URL in **External Booking Validator** settings
+3. Enter the URL **including the secret token** in **External Booking Validator** settings, e.g. `https://validator.example.com/?token=<your secret>`
 
 ## Security
 
-- **Always use HTTPS** — the request contains sensitive client data
+### URL token
+
+SimplyBook.me does not sign its requests and cannot send custom headers, so the only protection for the endpoint is a **secret token in the validator URL**:
+
+```
+https://validator.example.com/?token=<secret>
+```
+
+Every implementation compares the `token` query parameter with a secret read from the environment variable `VALIDATOR_TOKEN`, using a constant-time comparison. A missing or wrong token gets `403` with body `{}`.
+
+- Generate a secret of at least 32 characters, e.g. `openssl rand -hex 32` (64 hex characters).
+- **If the secret is missing or shorter than 32 characters the validator does not run:** the Node.js, Python, Go and Java servers refuse to start; the PHP script answers every request with `403` (an empty secret never matches an empty token).
+- Never commit the secret. Rotate it by changing the environment variable and the URL in SimplyBook.me together.
+
+How to set `VALIDATOR_TOKEN`:
+
+| Language | How |
+|----------|-----|
+| PHP | Web-server/PHP-FPM environment (`env[VALIDATOR_TOKEN]`, `fastcgi_param`, `SetEnv`), read with `getenv`. Without environment variables (shared hosting): copy [`validator.config.example.php`](validator.config.example.php) to `validator.config.php` **one level above the `php/` web root** (or point `VALIDATOR_CONFIG_FILE` at another path outside the web root). It is git-ignored. |
+| Node.js | `export VALIDATOR_TOKEN=...` before `node index.js`, or `VALIDATOR_TOKEN=... pm2 start ...` |
+| Python | `export VALIDATOR_TOKEN=...` before `uvicorn` / `gunicorn` |
+| Go | `export VALIDATOR_TOKEN=...` before `go run .` / `./validator` |
+| Java | `export VALIDATOR_TOKEN=...` before `java -jar ...`, or `Environment=` / `EnvironmentFile=` in the systemd unit |
+
+For systemd prefer `EnvironmentFile=/etc/validator.env` (mode `600`) over `Environment=` in the unit file, which is world-readable.
+
+Test with curl (`$VALIDATOR_TOKEN` must hold the same secret as the server):
+
+```bash
+# no token -> 403 {}
+curl -i -X POST http://localhost:8080/ -H 'Content-Type: application/json' -d '{}'
+# valid token -> 200
+curl -i -X POST "http://localhost:8080/?token=$VALIDATOR_TOKEN" -H 'Content-Type: application/json' -d '{"service_id": 9}'
+```
+
+### Other recommendations
+
+- **Always use HTTPS** — the request contains sensitive client data, and the token travels in the URL. HTTPS encrypts the URL in transit, but web-server access logs and proxies may record it: restrict who can read them or strip the query string from logged URLs
 - **Keep log files outside the web root** — default path is `/tmp/external_validator.log`; set to `null`/`None`/`""` to disable in production
-- **Add a shared secret** — verify a query-string token or header in the entry point to reject requests from unknown callers
 - **Respond within a few seconds** — SimplyBook.me has a short timeout

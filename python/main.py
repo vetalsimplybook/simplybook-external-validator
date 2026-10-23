@@ -1,11 +1,30 @@
+import hmac
+import os
+
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from external_validator import ExternalValidator
+
+# SimplyBook.me cannot sign requests or send custom headers, so the only
+# protection is a secret token in the URL (?token=...).
+# Refuse to start without a secret of at least 32 characters.
+SECRET = os.environ.get('VALIDATOR_TOKEN', '')
+if len(SECRET) < 32:
+    raise RuntimeError('VALIDATOR_TOKEN must be set to a secret of at least 32 characters')
+
+
+def token_matches(token) -> bool:
+    # Constant-time comparison on bytes (compare_digest rejects non-ASCII str)
+    return isinstance(token, str) and hmac.compare_digest(token.encode(), SECRET.encode())
+
 
 app = FastAPI()
 
 """
-# Uncomment for local testing (no HTTP request needed):
+# Uncomment for local testing (no HTTP request needed).
+# Run with: VALIDATOR_TOKEN=<at least 32 chars> python3 main.py
 if __name__ == '__main__':
+    stub_token = os.environ.get('VALIDATOR_TOKEN')  # the value you would put in ?token=
     stub_data = {
         'service_id': 9,
         'provider_id': 45,
@@ -23,12 +42,16 @@ if __name__ == '__main__':
     }
     import json
     validator = ExternalValidator()
-    print(json.dumps(validator.validate(stub_data), indent=2, ensure_ascii=False))
+    print(json.dumps(validator.validate(stub_data), indent=2, ensure_ascii=False) if token_matches(stub_token) else '403 {}')
+    raise SystemExit
 """
 
 
+# Only POST is accepted: FastAPI answers other methods with 405 (JSON) on its own.
 @app.post('/')
 async def validate(request: Request):
+    if not token_matches(request.query_params.get('token')):
+        return JSONResponse(status_code=403, content={})
     data = await request.json()
     if not data:
         return {}

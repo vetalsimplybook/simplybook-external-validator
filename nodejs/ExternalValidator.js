@@ -52,7 +52,7 @@ export class ExternalValidator {
             // Here we only handle service #9 — change this to your real service ID,
             // or remove the check entirely if you want to validate all services.
             if (!bookingData.service_id || bookingData.service_id !== 9) {
-                this._error(1, 'service_id');
+                this._error(1);
             }
 
             // Step 2: Make sure the booking includes intake form answers.
@@ -140,9 +140,7 @@ export class ExternalValidator {
 
     _sendError(e) {
         let result;
-        if (e.getFieldId()) {
-            result = [{ id: e.getFieldId(), errors: [e.message] }];
-        } else if (e.getIntakeFieldId()) {
+        if (e.getIntakeFieldId()) {
             result = { additional_fields: [{ id: e.getIntakeFieldId(), errors: [e.message] }] };
         } else {
             result = { errors: [e.message] };

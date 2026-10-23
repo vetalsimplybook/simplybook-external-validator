@@ -1,16 +1,34 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	// SimplyBook.me cannot sign requests or send custom headers, so the only
+	// protection is a secret token in the URL (?token=...).
+	// Refuse to start without a secret of at least 32 characters.
+	secret := os.Getenv("VALIDATOR_TOKEN")
+	if len(secret) < 32 {
+		log.Fatal("VALIDATOR_TOKEN must be set to a secret of at least 32 characters")
+	}
+
+	// Constant-time comparison (ConstantTimeCompare returns 0 on a length mismatch).
+	tokenMatches := func(token string) bool {
+		return subtle.ConstantTimeCompare([]byte(token), []byte(secret)) == 1
+	}
+
 	/*
-	   // Uncomment for local testing (no HTTP request needed):
+	   // Uncomment for local testing (no HTTP request needed).
+	   // Run with: VALIDATOR_TOKEN=<at least 32 chars> go run .
+	   stubToken := os.Getenv("VALIDATOR_TOKEN") // the value you would put in ?token=
 	   stubJSON := `{
 	       "service_id": 9,
 	       "provider_id": 45,
@@ -28,6 +46,10 @@ func main() {
 	   }`
 	   var stubData map[string]interface{}
 	   json.Unmarshal([]byte(stubJSON), &stubData)
+	   if !tokenMatches(stubToken) {
+	       fmt.Println("403 {}")
+	       return
+	   }
 	   validator := NewExternalValidator()
 	   result := validator.Validate(stubData)
 	   b, _ := json.MarshalIndent(result, "", "  ")
@@ -37,7 +59,18 @@ func main() {
 
 	r := gin.Default()
 
+	// Only POST is accepted; other methods get 405 with a JSON body
+	r.HandleMethodNotAllowed = true
+	r.NoMethod(func(c *gin.Context) {
+		c.Header("Allow", "POST")
+		c.JSON(http.StatusMethodNotAllowed, gin.H{})
+	})
+
 	r.POST("/", func(c *gin.Context) {
+		if !tokenMatches(c.Query("token")) {
+			c.JSON(http.StatusForbidden, gin.H{})
+			return
+		}
 		var bookingData map[string]interface{}
 		if err := c.ShouldBindJSON(&bookingData); err != nil || bookingData == nil {
 			c.JSON(http.StatusOK, gin.H{})
