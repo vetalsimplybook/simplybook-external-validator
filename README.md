@@ -1,6 +1,6 @@
 # SimplyBook.me External Booking Validator — Examples
 
-Reference implementations of the SimplyBook.me [External Booking Validator](https://simplybook.me/en/booking-software/features/external-booking-validator) webhook in four languages.
+Reference implementations of the SimplyBook.me [External Booking Validator](https://simplybook.me/en/booking-software/features/external-booking-validator) webhook in five languages.
 
 SimplyBook.me calls your HTTPS endpoint synchronously before saving a booking. Your validator can **accept**, **reject** (with error messages shown to the client), or **modify** (rewrite intake form field values) the booking.
 
@@ -14,7 +14,7 @@ SimplyBook.me calls your HTTPS endpoint synchronously before saving a booking. Y
 | Go 1.21+ | Gin | [`go/`](go/) |
 | Java 17+ | Spring Boot | [`java/`](java/) |
 
-Each implementation contains identical example validation logic, URL-token authentication (see [Security](#security)) and a commented-out stub for local testing (no HTTP request required).
+Each implementation contains identical example validation logic and URL-token authentication (see [Security](#security)). All except Java also have a commented-out stub for local testing (no HTTP request required).
 
 ---
 
@@ -192,7 +192,7 @@ pip install -r requirements.txt
 
 ```bash
 export VALIDATOR_TOKEN=$(openssl rand -hex 32)   # see Security
-uvicorn main:app --port 8000
+uvicorn main:app --port 8000 --no-access-log   # the access log would record ?token=
 # Listening on http://localhost:8000
 ```
 
@@ -246,7 +246,7 @@ pip install gunicorn
 gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 ```
 
-Pass the secret with `VALIDATOR_TOKEN=<your secret> gunicorn ...`. Or use [systemd](https://systemd.io/) / [supervisor](http://supervisord.org/) (with an `Environment=` / `environment=` entry) to keep the process alive. Put it behind a reverse proxy (Nginx or Caddy) for HTTPS termination. Example Caddy config:
+Pass the secret with `VALIDATOR_TOKEN=<your secret> gunicorn ...` (do not enable `--access-logfile`: it would record `?token=`). Or use [systemd](https://systemd.io/) / [supervisor](http://supervisord.org/) (with an `Environment=` / `environment=` entry) to keep the process alive. Put it behind a reverse proxy (Nginx or Caddy) for HTTPS termination. Example Caddy config:
 
 ```
 yourdomain.com {
@@ -459,7 +459,7 @@ SimplyBook.me sends a JSON object to your endpoint:
 
 ### Responses
 
-Every response has `Content-Type: application/json`. Only `POST` is accepted.
+Every response from the validator has `Content-Type: application/json` (unparseable bodies, unknown paths and other methods answer with `{}` too, except Java's default 404 body for unknown paths, and requests that the web server in front or Java's embedded Tomcat rejects as malformed before they reach the validator). Only `POST` is accepted.
 
 | Situation | HTTP status | Body |
 |-----------|-------------|------|
@@ -468,7 +468,7 @@ Every response has `Content-Type: application/json`. Only `POST` is accepted.
 | Reject, general error | 200 | `{"errors": ["..."]}` |
 | Reject, field-level error | 200 | `{"additional_fields": [{"id": "...", "errors": ["..."]}]}` |
 | Missing or wrong `?token` (or no secret configured, PHP) | 403 | `{}` |
-| Method other than `POST` | 405 | `{}` |
+| Method other than `POST` | 405 | `{}` (checked before the token) |
 
 > **Never answer `{"errors": []}` to accept a booking** — an empty `errors` list also rejects it. Accept with `{}` (or with the changed `additional_fields`). Likewise do not return a bare JSON array (`[]` or `[{...}]`).
 
@@ -528,7 +528,7 @@ https://validator.example.com/?token=<secret>
 Every implementation compares the `token` query parameter with a secret read from the environment variable `VALIDATOR_TOKEN`, using a constant-time comparison. A missing or wrong token gets `403` with body `{}`.
 
 - Generate a secret of at least 32 characters, e.g. `openssl rand -hex 32` (64 hex characters).
-- **If the secret is missing or shorter than 32 characters the validator does not run:** the Node.js, Python, Go and Java servers refuse to start; the PHP script answers every request with `403` (an empty secret never matches an empty token).
+- **If the secret is missing or shorter than 32 characters the validator does not run:** the Node.js, Python, Go and Java servers refuse to start; the PHP script answers every `POST` with `403` (an empty secret never matches an empty token).
 - Never commit the secret. Rotate it by changing the environment variable and the URL in SimplyBook.me together.
 
 How to set `VALIDATOR_TOKEN`:
@@ -543,7 +543,7 @@ How to set `VALIDATOR_TOKEN`:
 
 For systemd prefer `EnvironmentFile=/etc/validator.env` (mode `600`) over `Environment=` in the unit file, which is world-readable.
 
-Test with curl (`$VALIDATOR_TOKEN` must hold the same secret as the server):
+Test with curl (`$VALIDATOR_TOKEN` must hold the same secret as the server; the examples use port 8080 — Node.js listens on 3000, Python on 8000, and PHP on the port you started it with):
 
 ```bash
 # no token -> 403 {}
@@ -554,6 +554,6 @@ curl -i -X POST "http://localhost:8080/?token=$VALIDATOR_TOKEN" -H 'Content-Type
 
 ### Other recommendations
 
-- **Always use HTTPS** — the request contains sensitive client data, and the token travels in the URL. HTTPS encrypts the URL in transit, but web-server access logs and proxies may record it: restrict who can read them or strip the query string from logged URLs
+- **Always use HTTPS** — the request contains sensitive client data, and the token travels in the URL. HTTPS encrypts the URL in transit, but web-server access logs and proxies may record it, so restrict who can read them or strip the query string from logged URLs. The example apps do not log it themselves: Go logs only the path, and Python runs uvicorn with the access log off
 - **Keep log files outside the web root** — default path is `/tmp/external_validator.log`; set to `null`/`None`/`""` to disable in production
 - **Respond within a few seconds** — SimplyBook.me has a short timeout

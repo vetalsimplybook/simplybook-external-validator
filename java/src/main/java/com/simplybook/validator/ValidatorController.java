@@ -1,6 +1,8 @@
 package com.simplybook.validator;
 
 import jakarta.servlet.http.HttpServletRequest;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -12,13 +14,16 @@ import java.util.*;
 public class ValidatorController {
 
     private final String secret = TokenAuth.loadSecret();
+    private final JsonMapper mapper = JsonMapper.builder().build();
 
-    // Mapped to every method so that 405 can be answered with a JSON body
-    @RequestMapping("/")
+    // Every method is listed (OPTIONS included) so that 405 can be answered with a
+    // JSON body. The body is read as a string and parsed only after the token check.
+    @RequestMapping(value = "/", method = {RequestMethod.GET, RequestMethod.HEAD, RequestMethod.POST,
+            RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE, RequestMethod.OPTIONS})
     public ResponseEntity<Object> validate(
             HttpServletRequest request,
             @RequestParam(name = "token", required = false) String token,
-            @RequestBody(required = false) Map<String, Object> bookingData) {
+            @RequestBody(required = false) String rawBody) {
 
         // Only POST is accepted
         if (!"POST".equals(request.getMethod())) {
@@ -30,10 +35,20 @@ public class ValidatorController {
         if (!TokenAuth.matches(secret, token)) {
             return json(HttpStatus.FORBIDDEN, Collections.emptyMap());
         }
+        Map<String, Object> bookingData = parse(rawBody);
         if (bookingData == null || bookingData.isEmpty()) {
             return json(HttpStatus.OK, Collections.emptyMap());
         }
         return json(HttpStatus.OK, new ExternalValidator().validate(bookingData));
+    }
+
+    private Map<String, Object> parse(String rawBody) {
+        if (rawBody == null || rawBody.isBlank()) return null;
+        try {
+            return mapper.readValue(rawBody, new TypeReference<Map<String, Object>>() {});
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     private static ResponseEntity<Object> json(HttpStatus status, Object body) {

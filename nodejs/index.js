@@ -71,4 +71,8 @@ app.post('/', (req, res) => {
     res.json(validator.validate(req.body));
 });
 
+// JSON bodies for unparseable requests and unknown paths
+app.use((req, res) => res.status(404).json({}));
+app.use((err, req, res, next) => res.status(err.status || 400).json({}));
+
 app.listen(3000, () => console.log('Validator listening on http://localhost:3000'));

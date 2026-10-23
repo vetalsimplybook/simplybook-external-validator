@@ -3,6 +3,7 @@ import os
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from external_validator import ExternalValidator
 
 # SimplyBook.me cannot sign requests or send custom headers, so the only
@@ -19,6 +20,12 @@ def token_matches(token) -> bool:
 
 
 app = FastAPI()
+
+
+# 404/405 etc. answer with an empty JSON object, like every other reply
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(status_code=exc.status_code, content={}, headers=exc.headers)
 
 """
 # Uncomment for local testing (no HTTP request needed).
@@ -47,13 +54,16 @@ if __name__ == '__main__':
 """
 
 
-# Only POST is accepted: FastAPI answers other methods with 405 (JSON) on its own.
+# Only POST is accepted: FastAPI answers other methods with 405 (handled above).
 @app.post('/')
 async def validate(request: Request):
     if not token_matches(request.query_params.get('token')):
         return JSONResponse(status_code=403, content={})
-    data = await request.json()
-    if not data:
+    try:
+        data = await request.json()
+    except ValueError:
+        data = None
+    if not data or not isinstance(data, dict):
         return {}
     validator = ExternalValidator()
     return validator.validate(data)
@@ -61,4 +71,5 @@ async def validate(request: Request):
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+    # access_log=False: the access log would record ?token=...
+    uvicorn.run(app, host='0.0.0.0', port=8000, access_log=False)

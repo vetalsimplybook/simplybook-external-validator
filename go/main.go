@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -57,7 +58,15 @@ func main() {
 	   return
 	*/
 
-	r := gin.Default()
+	// gin.Default() would log the full URL including ?token=..., so use a logger
+	// that drops the query string.
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(gin.LoggerWithFormatter(func(p gin.LogFormatterParams) string {
+		path, _, _ := strings.Cut(p.Path, "?")
+		return fmt.Sprintf("[GIN] %s | %3d | %13v | %15s | %-7s %q\n",
+			p.TimeStamp.Format("2006/01/02 - 15:04:05"), p.StatusCode, p.Latency, p.ClientIP, p.Method, path)
+	}))
 
 	// Only POST is accepted; other methods get 405 with a JSON body
 	r.HandleMethodNotAllowed = true
@@ -66,13 +75,18 @@ func main() {
 		c.JSON(http.StatusMethodNotAllowed, gin.H{})
 	})
 
+	// JSON body for unknown paths too
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, gin.H{})
+	})
+
 	r.POST("/", func(c *gin.Context) {
 		if !tokenMatches(c.Query("token")) {
 			c.JSON(http.StatusForbidden, gin.H{})
 			return
 		}
 		var bookingData map[string]interface{}
-		if err := c.ShouldBindJSON(&bookingData); err != nil || bookingData == nil {
+		if err := c.ShouldBindJSON(&bookingData); err != nil || len(bookingData) == 0 {
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
